@@ -1,20 +1,33 @@
 import uuid
 from collections import deque
-
 import networkx as nx
 import matplotlib.pyplot as plt
 
 class Node:
-    def __init__(self, key, color="skyblue"):
+    def __init__(self, key, color="#1296F0"):  # ініціалізуємо колір, що буде оновлятись 
         self.left = None
         self.right = None
         self.val = key
-        self.color = color  # Додатковий аргумент для зберігання кольору вузла
-        self.id = str(uuid.uuid4())  # Унікальний ідентифікатор для кожного вузла
+        self.color = color
+        self.id = str(uuid.uuid4())
+
+def generate_color_spectrum(n):
+    # будуємо спектр кольорів від світлого до темного
+    spectrum = []
+    for i in range(n):
+        intensity = 255 - int((i / n) * 155) 
+        color = "#{:02X}{:02X}F0".format(intensity, intensity)  # відтінки блакитного
+        spectrum.append(color)
+    return spectrum
+
+def update_node_colors(nodes, spectrum):
+   # Оновлюєм кольори вузлів на основі їх порядку в обході
+    for node, color in zip(nodes, spectrum):
+        node.color = color
 
 def add_edges(graph, node, pos, x=0, y=0, layer=1):
     if node is not None:
-        graph.add_node(node.id, color=node.color, label=node.val)  # Використання id та збереження значення вузла
+        graph.add_node(node.id, color=node.color, label=node.val)
         if node.left:
             graph.add_edge(node.id, node.left.id)
             l = x - 1 / 2 ** layer
@@ -27,28 +40,36 @@ def add_edges(graph, node, pos, x=0, y=0, layer=1):
             r = add_edges(graph, node.right, pos, x=r, y=y - 1, layer=layer + 1)
     return graph
 
-def dfs(node, visited =None):
+def dfs(node, visited=None, color_update=False):
     if visited is None:
         visited = []
     if node:
-        visited.append(node.val) # поточний вузол
-        dfs(node.left, visited) # Рекурсивно відвідуємо ліве піддерево
-        dfs(node.right, visited) # Рекурсивно відвідуємо праве піддерево
-    return visited
+        visited.append(node)
+        if node.left:
+            dfs(node.left, visited, color_update)
+        if node.right:
+            dfs(node.right, visited, color_update)
+    if color_update:
+        color_spectrum = generate_color_spectrum(len(visited))
+        update_node_colors(visited, color_spectrum)
+    return [node.val for node in visited]
 
-def bfs(root):
+def bfs(root, color_update=False):
     if root is None:
         return []
-    queue = deque([root]) #  черга для зберігання вузлів для відвідування
+    queue = deque([root])
     visited = []
     while queue:
-        node = queue.popleft() # видалили вузол з черги
-        visited.append(node.val) # відвідуємо вузол
+        node = queue.popleft()
+        visited.append(node)
         if node.left:
             queue.append(node.left)
         if node.right:
             queue.append(node.right)
-    return visited
+    if color_update:
+        color_spectrum = generate_color_spectrum(len(visited))
+        update_node_colors(visited, color_spectrum)
+    return [node.val for node in visited]
 
 def draw_tree(tree_root):
     tree = nx.DiGraph()
@@ -56,27 +77,24 @@ def draw_tree(tree_root):
     tree = add_edges(tree, tree_root, pos)
 
     colors = [node[1]['color'] for node in tree.nodes(data=True)]
-    labels = {node[0]: node[1]['label'] for node in tree.nodes(data=True)}  # Використовуйте значення вузла для міток
+    labels = {node[0]: node[1]['label'] for node in tree.nodes(data=True)}
 
     plt.figure(figsize=(8, 5))
     nx.draw(tree, pos=pos, labels=labels, arrows=False, node_size=2500, node_color=colors)
     plt.show()
 
-# Створення дерева
-root = Node(0)
+root = Node(0)  
 root.left = Node(4)
 root.left.left = Node(5)
 root.left.right = Node(10)
 root.right = Node(1)
 root.right.left = Node(3)
 
-# Відображення дерева
-draw_tree(root)
-
-# Виконання обходу в глибину (DFS) та виведення результату
-dfs_result = dfs(root)
+dfs_result = dfs(root, color_update=True)  # відображення обходу через дфс
 print("DFS обхід:", dfs_result)
 
-# Виконання обходу в ширину (BFS) та виведення результату
-bfs_result = bfs(root)
+bfs_result = bfs(root, color_update=True)  
 print("BFS обхід:", bfs_result)
+
+# відображення дерева з кольорами
+draw_tree(root)
